@@ -6,254 +6,95 @@
   <title>Tuteur RDM — IA</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      background: #0f1117;
-      color: #e0e0e0;
-      display: flex;
-      height: 100vh;
-      overflow: hidden;
-    }
-
-    /* ── Sidebar ── */
-    #sidebar {
-      width: 300px;
-      min-width: 300px;
-      background: #1a1d27;
-      border-right: 1px solid #2a2d3e;
-      display: flex;
-      flex-direction: column;
-      padding: 20px;
-      gap: 16px;
-      overflow-y: auto;
-    }
-
-    #sidebar h2 {
-      font-size: 1rem;
-      color: #a0a8c0;
-      text-transform: uppercase;
-      letter-spacing: .08em;
-    }
-
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f1117; color: #e0e0e0; display: flex; height: 100vh; overflow: hidden; }
+    #sidebar { width: 300px; min-width: 300px; background: #1a1d27; border-right: 1px solid #2a2d3e; display: flex; flex-direction: column; padding: 20px; gap: 16px; overflow-y: auto; }
+    #sidebar h2 { font-size: 1rem; color: #a0a8c0; text-transform: uppercase; letter-spacing: .08em; }
     label { font-size: .85rem; color: #a0a8c0; display: block; margin-bottom: 4px; }
-
-    input[type="text"], input[type="password"] {
-      width: 100%;
-      padding: 8px 10px;
-      background: #0f1117;
-      border: 1px solid #2a2d3e;
-      border-radius: 6px;
-      color: #e0e0e0;
-      font-size: .9rem;
-    }
+    input[type="text"], input[type="password"] { width: 100%; padding: 8px 10px; background: #0f1117; border: 1px solid #2a2d3e; border-radius: 6px; color: #e0e0e0; font-size: .9rem; }
     input:focus { outline: none; border-color: #5c6bc0; }
-
-    .btn {
-      width: 100%;
-      padding: 10px;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: .9rem;
-      font-weight: 600;
-      transition: opacity .2s;
-    }
-    .btn:hover { opacity: .85; }
-    .btn:disabled { opacity: .4; cursor: not-allowed; }
+    .btn { width: 100%; padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-size: .9rem; font-weight: 600; transition: opacity .2s; }
+    .btn:hover { opacity: .85; } .btn:disabled { opacity: .4; cursor: not-allowed; }
     .btn-primary { background: #5c6bc0; color: #fff; }
     .btn-danger  { background: #c0525c; color: #fff; }
-
     #progress-wrap { display: none; }
-    #progress-bar-bg {
-      background: #2a2d3e;
-      border-radius: 99px;
-      height: 6px;
-      overflow: hidden;
-      margin-top: 6px;
-    }
+    #progress-bar-bg { background: #2a2d3e; border-radius: 99px; height: 6px; overflow: hidden; margin-top: 6px; }
     #progress-bar { height: 100%; background: #5c6bc0; width: 0%; transition: width .3s; }
     #progress-label { font-size: .78rem; color: #a0a8c0; margin-top: 4px; }
-
     #file-list { display: none; }
     #file-list h3 { font-size: .85rem; color: #a0a8c0; margin-bottom: 6px; }
     #file-list ul { list-style: none; padding: 0; }
     #file-list li { font-size: .8rem; color: #7a8099; padding: 2px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    #file-list li::before { content: "• "; }
-
+    #file-list li::before { content: "\2022 "; }
     hr { border: none; border-top: 1px solid #2a2d3e; }
-
     #status-msg { font-size: .8rem; padding: 8px 10px; border-radius: 6px; display: none; }
     .msg-ok  { background: #1a3a2a; color: #4caf7a; }
     .msg-err { background: #3a1a1a; color: #cf6679; }
-
-    /* ── Main ── */
-    #main {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-
-    #chat-header {
-      padding: 18px 24px;
-      border-bottom: 1px solid #2a2d3e;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
+    #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    #chat-header { padding: 18px 24px; border-bottom: 1px solid #2a2d3e; display: flex; align-items: center; gap: 10px; }
     #chat-header span { font-size: 1.4rem; }
     #chat-header h1 { font-size: 1.1rem; font-weight: 600; }
-
-    #messages {
-      flex: 1;
-      overflow-y: auto;
-      padding: 24px;
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
-
+    #messages { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 20px; }
     .msg { display: flex; gap: 12px; max-width: 820px; }
     .msg.user  { align-self: flex-end; flex-direction: row-reverse; }
     .msg.model { align-self: flex-start; }
-
-    .avatar {
-      width: 36px; height: 36px;
-      border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1rem; flex-shrink: 0;
-    }
+    .avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
     .user  .avatar { background: #5c6bc0; }
     .model .avatar { background: #2a2d3e; }
-
-    .bubble {
-      padding: 12px 16px;
-      border-radius: 12px;
-      font-size: .92rem;
-      line-height: 1.65;
-      max-width: 720px;
-    }
+    .bubble { padding: 12px 16px; border-radius: 12px; font-size: .92rem; line-height: 1.65; max-width: 720px; }
     .user  .bubble { background: #5c6bc0; border-bottom-right-radius: 3px; }
     .model .bubble { background: #1a1d27; border: 1px solid #2a2d3e; border-bottom-left-radius: 3px; white-space: pre-wrap; }
-
     .typing .bubble { display: flex; gap: 6px; align-items: center; padding: 14px 18px; }
     .dot { width: 8px; height: 8px; border-radius: 50%; background: #5c6bc0; animation: bounce .9s infinite; }
-    .dot:nth-child(2) { animation-delay: .15s; }
-    .dot:nth-child(3) { animation-delay: .3s; }
+    .dot:nth-child(2) { animation-delay: .15s; } .dot:nth-child(3) { animation-delay: .3s; }
     @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
-
-    #empty-state {
-      flex: 1; display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      gap: 12px; color: #4a4f6a; text-align: center; padding: 40px;
-    }
+    #empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: #4a4f6a; text-align: center; padding: 40px; }
     #empty-state .icon { font-size: 3rem; }
     #empty-state h2 { font-size: 1.1rem; color: #6a7090; }
     #empty-state p  { font-size: .88rem; max-width: 380px; line-height: 1.6; }
-
-    #input-area {
-      padding: 16px 24px;
-      border-top: 1px solid #2a2d3e;
-      display: flex; gap: 10px;
-    }
-
-    #user-input {
-      flex: 1; padding: 12px 14px;
-      background: #1a1d27; border: 1px solid #2a2d3e;
-      border-radius: 10px; color: #e0e0e0; font-size: .92rem;
-      resize: none; height: 48px; max-height: 140px;
-      font-family: inherit; line-height: 1.5;
-    }
+    #input-area { padding: 16px 24px; border-top: 1px solid #2a2d3e; display: flex; gap: 10px; }
+    #user-input { flex: 1; padding: 12px 14px; background: #1a1d27; border: 1px solid #2a2d3e; border-radius: 10px; color: #e0e0e0; font-size: .92rem; resize: none; height: 48px; max-height: 140px; font-family: inherit; line-height: 1.5; }
     #user-input:focus { outline: none; border-color: #5c6bc0; }
-
-    #send-btn {
-      width: 48px; height: 48px; flex-shrink: 0;
-      background: #5c6bc0; border: none; border-radius: 10px;
-      color: #fff; font-size: 1.2rem; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      transition: opacity .2s;
-    }
-    #send-btn:hover { opacity: .85; }
-    #send-btn:disabled { opacity: .4; cursor: not-allowed; }
-
+    #send-btn { width: 48px; height: 48px; flex-shrink: 0; background: #5c6bc0; border: none; border-radius: 10px; color: #fff; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: opacity .2s; }
+    #send-btn:hover { opacity: .85; } #send-btn:disabled { opacity: .4; cursor: not-allowed; }
     .model .bubble strong { color: #a0c4ff; }
-    .model .bubble code {
-      background: #0f1117; padding: 2px 5px;
-      border-radius: 4px; font-family: monospace; font-size: .88em;
-    }
+    .model .bubble code { background: #0f1117; padding: 2px 5px; border-radius: 4px; font-family: monospace; font-size: .88em; }
   </style>
 </head>
 <body>
 
 <aside id="sidebar">
   <h2>⚙️ Configuration</h2>
-
-  <div>
-    <label for="gemini-key">Clé API Gemini</label>
-    <input id="gemini-key" type="password" placeholder="AIzaSy…" />
-  </div>
-
-  <div>
-    <label for="folder-id">ID ou URL du dossier Google Drive</label>
-    <input id="folder-id" type="text" placeholder="1AbCdEfGhIjKl… ou URL complète" />
-  </div>
-
-  <div>
-    <label for="client-id">Client ID OAuth Google</label>
-    <input id="client-id" type="text" placeholder="xxx.apps.googleusercontent.com" />
-  </div>
-
+  <div><label for="gemini-key">Clé API Gemini</label><input id="gemini-key" type="password" placeholder="AIzaSy…" /></div>
+  <div><label for="folder-id">ID ou URL du dossier Google Drive</label><input id="folder-id" type="text" placeholder="1AbCdEfGhIjKl… ou URL complète" /></div>
+  <div><label for="client-id">Client ID OAuth Google</label><input id="client-id" type="text" placeholder="xxx.apps.googleusercontent.com" /></div>
   <button class="btn btn-primary" id="sync-btn" onclick="startSync()">🔄 Synchroniser le Drive</button>
-
   <div id="progress-wrap">
     <div id="progress-bar-bg"><div id="progress-bar"></div></div>
     <div id="progress-label">Initialisation…</div>
   </div>
-
   <div id="status-msg"></div>
-
   <hr />
-
-  <div id="file-list">
-    <h3>📚 Fichiers chargés</h3>
-    <ul id="files-ul"></ul>
-  </div>
-
+  <div id="file-list"><h3>📚 Fichiers chargés</h3><ul id="files-ul"></ul></div>
   <hr />
   <button class="btn btn-danger" onclick="clearChat()">🗑️ Effacer la conversation</button>
-
   <hr />
   <details style="font-size:.8rem;color:#6a7090;line-height:1.6">
-    <summary style="cursor:pointer;color:#a0a8c0">ℹ️ Comment obtenir le Client ID ?</summary>
-    <ol style="margin-top:8px;padding-left:16px">
-      <li>Allez sur <strong>console.cloud.google.com</strong></li>
-      <li>Créez un projet → activez l'<strong>API Google Drive</strong></li>
-      <li>Identifiants → Créer → <strong>ID client OAuth</strong></li>
-      <li>Type : <strong>Application Web</strong></li>
-      <li>Origines JS autorisées : <code>https://eren-007.github.io</code></li>
-      <li>Copiez le <strong>Client ID</strong> ici</li>
-    </ol>
+    <summary style="cursor:pointer;color:#a0a8c0">ℹ️ Formats supportés</summary>
+    <p style="margin-top:8px">📄 PDF &nbsp;📊 PowerPoint (.pptx) &nbsp;📝 Word (.docx) &nbsp;📃 Texte &nbsp;📄 Google Docs &nbsp;📊 Google Slides</p>
   </details>
 </aside>
 
 <main id="main">
-  <div id="chat-header">
-    <span>📐</span>
-    <h1>Tuteur IA — Résistance des Matériaux</h1>
-  </div>
-
+  <div id="chat-header"><span>📐</span><h1>Tuteur IA — Résistance des Matériaux</h1></div>
   <div id="messages">
     <div id="empty-state">
       <div class="icon">📚</div>
       <h2>Synchronisez vos cours pour commencer</h2>
-      <p>Entrez votre clé Gemini, votre Client ID Google et l'ID de votre dossier Drive, puis cliquez sur <strong>Synchroniser</strong>.</p>
+      <p>Entrez votre clé Gemini, votre Client ID Google et l'ID de votre dossier Drive, puis cliquez sur <strong>Synchroniser</strong>.<br><br>Formats acceptés : PDF, PowerPoint, Word, texte, Google Docs, Google Slides.</p>
     </div>
   </div>
-
   <div id="input-area">
-    <textarea id="user-input" placeholder="Posez votre question sur le cours de RDM…" disabled
-      onkeydown="handleKey(event)"></textarea>
+    <textarea id="user-input" placeholder="Posez votre question sur le cours de RDM…" disabled onkeydown="handleKey(event)"></textarea>
     <button id="send-btn" onclick="sendMessage()" disabled>➤</button>
   </div>
 </main>
@@ -262,6 +103,16 @@
   let driveContext = "";
   let chatHistory = [];
   let synced = false;
+
+  // MIME types supportés : PDF, PPTX, DOCX, TXT, Google Docs, Google Slides
+  const SUPPORTED_MIMES = [
+    'application/pdf',
+    'text/plain',
+    'application/vnd.google-apps.document',
+    'application/vnd.google-apps.presentation',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  ];
 
   window.addEventListener('load', () => {
     const saved = localStorage.getItem('rdm_config');
@@ -299,9 +150,7 @@
     document.getElementById('progress-label').textContent = label;
   }
 
-  function hideProgress() {
-    document.getElementById('progress-wrap').style.display = 'none';
-  }
+  function hideProgress() { document.getElementById('progress-wrap').style.display = 'none'; }
 
   function appendMessage(role, text, typing = false) {
     const empty = document.getElementById('empty-state');
@@ -311,9 +160,9 @@
     div.className = 'msg ' + role + (typing ? ' typing' : '');
     if (typing) {
       div.id = 'typing-indicator';
-      div.innerHTML = `<div class="avatar">${role === 'user' ? '🎓' : '🤖'}</div><div class="bubble"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
+      div.innerHTML = `<div class="avatar">${role==='user'?'🎓':'🤖'}</div><div class="bubble"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
     } else {
-      div.innerHTML = `<div class="avatar">${role === 'user' ? '🎓' : '🤖'}</div><div class="bubble">${escapeHtml(text)}</div>`;
+      div.innerHTML = `<div class="avatar">${role==='user'?'🎓':'🤖'}</div><div class="bubble">${escapeHtml(text)}</div>`;
     }
     wrap.appendChild(div);
     wrap.scrollTop = wrap.scrollHeight;
@@ -337,6 +186,7 @@
       '<div id="empty-state"><div class="icon">📚</div><h2>Conversation effacée</h2><p>Posez une nouvelle question.</p></div>';
   }
 
+  // ── Google OAuth ──────────────────────────────────────────────────────────
   async function loadGisScript() {
     return new Promise(resolve => {
       if (window.google && window.google.accounts) return resolve();
@@ -359,14 +209,13 @@
     });
   }
 
+  // ── Google Drive listing ──────────────────────────────────────────────────
   async function listFilesInFolder(token, folderId) {
-    const mimes = ['application/pdf','text/plain','application/vnd.google-apps.document',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
-      .map(m => `mimeType='${m}'`).join(' or ');
+    const mimeFilter = SUPPORTED_MIMES.map(m => `mimeType='${m}'`).join(' or ');
     let files = [], pageToken = '';
     do {
-      const q = encodeURIComponent(`'${folderId}' in parents and trashed=false and (${mimes})`);
-      const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=nextPageToken,files(id,name,mimeType)&pageSize=100${pageToken ? '&pageToken='+pageToken : ''}`;
+      const q = encodeURIComponent(`'${folderId}' in parents and trashed=false and (${mimeFilter})`);
+      const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=nextPageToken,files(id,name,mimeType)&pageSize=100${pageToken?'&pageToken='+pageToken:''}`;
       const r = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
       const data = await r.json();
       if (data.error) throw new Error(data.error.message);
@@ -376,6 +225,7 @@
     return files;
   }
 
+  // ── PDF extraction (PDF.js) ───────────────────────────────────────────────
   async function loadPdfJs() {
     if (window.pdfjsLib) return;
     return new Promise(resolve => {
@@ -402,25 +252,89 @@
       }
       return text;
     } catch(e) {
-      return `[Impossible d'extraire le PDF ${name}: ${e.message}]`;
+      return `[Erreur extraction PDF ${name}: ${e.message}]`;
     }
   }
 
+  // ── PowerPoint extraction (JSZip) ─────────────────────────────────────────
+  async function loadJsZip() {
+    if (window.JSZip) return;
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+      s.onload = resolve;
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+
+  async function extractPptxText(buffer, name) {
+    try {
+      await loadJsZip();
+      const zip = await JSZip.loadAsync(buffer);
+      const slideFiles = Object.keys(zip.files)
+        .filter(f => f.match(/^ppt\/slides\/slide[0-9]+\.xml$/))
+        .sort((a, b) => {
+          const na = parseInt(a.match(/slide(\d+)/)[1]);
+          const nb = parseInt(b.match(/slide(\d+)/)[1]);
+          return na - nb;
+        });
+
+      let text = `=== ${name} ===\n`;
+      for (const slidePath of slideFiles) {
+        const xml = await zip.files[slidePath].async('string');
+        // Extraire tout le texte des balises <a:t> (texte des formes PowerPoint)
+        const matches = xml.match(/<a:t[^>]*>([^<]*)<\/a:t>/g) || [];
+        const slideText = matches
+          .map(m => m.replace(/<[^>]+>/g, '').trim())
+          .filter(t => t.length > 0)
+          .join(' ');
+        const slideNum = slidePath.match(/slide(\d+)/)[1];
+        if (slideText) text += `[Diapo ${slideNum}] ${slideText}\n`;
+      }
+      return text;
+    } catch(e) {
+      return `[Erreur extraction PPTX ${name}: ${e.message}]`;
+    }
+  }
+
+  // ── Téléchargement et extraction par type ─────────────────────────────────
   async function downloadFileText(token, file) {
-    let url;
-    if (file.mimeType === 'application/vnd.google-apps.document') {
-      url = `https://www.googleapis.com/drive/v3/files/${file.id}/export?mimeType=text%2Fplain`;
-    } else {
-      url = `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`;
+    const { id, name, mimeType } = file;
+    try {
+      // Google Docs / Slides natifs : export texte
+      if (mimeType === 'application/vnd.google-apps.document' ||
+          mimeType === 'application/vnd.google-apps.presentation') {
+        const r = await fetch(
+          `https://www.googleapis.com/drive/v3/files/${id}/export?mimeType=text%2Fplain`,
+          { headers: { Authorization: 'Bearer ' + token } }
+        );
+        if (!r.ok) return `[Erreur export Google ${name}]`;
+        return `=== ${name} ===\n` + await r.text();
+      }
+
+      // Fichiers binaires : téléchargement brut
+      const r = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${id}?alt=media`,
+        { headers: { Authorization: 'Bearer ' + token } }
+      );
+      if (!r.ok) return `[Erreur téléchargement ${name}]`;
+      const buffer = await r.arrayBuffer();
+
+      if (mimeType === 'application/pdf') {
+        return await extractPdfText(buffer, name);
+      }
+      if (mimeType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation') {
+        return await extractPptxText(buffer, name);
+      }
+      // DOCX et texte brut
+      return `=== ${name} ===\n` + new TextDecoder('utf-8').decode(buffer);
+    } catch(e) {
+      return `[Erreur ${name}: ${e.message}]`;
     }
-    const r = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
-    if (!r.ok) return `[Erreur téléchargement: ${file.name}]`;
-    if (file.mimeType === 'application/pdf') {
-      return await extractPdfText(await r.arrayBuffer(), file.name);
-    }
-    return `=== ${file.name} ===\n` + await r.text();
   }
 
+  // ── Synchronisation ───────────────────────────────────────────────────────
   async function startSync() {
     const geminiKey = document.getElementById('gemini-key').value.trim();
     const folderId  = parseFolderId(document.getElementById('folder-id').value);
@@ -442,13 +356,16 @@
       }
       let allText = ''; const names = [];
       for (let i = 0; i < files.length; i++) {
-        setProgress(15 + Math.round(((i+1)/files.length)*80), `📄 ${files[i].name} (${i+1}/${files.length})`);
+        const emoji = files[i].mimeType.includes('presentation') ? '📊' : '📄';
+        setProgress(15 + Math.round(((i+1)/files.length)*80),
+          `${emoji} ${files[i].name} (${i+1}/${files.length})`);
         allText += await downloadFileText(token, files[i]) + '\n\n';
         names.push(files[i].name);
       }
       driveContext = allText.slice(0, 900_000);
       chatHistory = []; synced = true;
-      document.getElementById('files-ul').innerHTML = names.map(n => `<li title="${n}">${n}</li>`).join('');
+      document.getElementById('files-ul').innerHTML =
+        names.map(n => `<li title="${n}">${n}</li>`).join('');
       document.getElementById('file-list').style.display = 'block';
       setProgress(100, 'Terminé !');
       setTimeout(hideProgress, 1500);
@@ -461,6 +378,7 @@
     }
   }
 
+  // ── Gemini API ────────────────────────────────────────────────────────────
   async function callGemini(question) {
     const key = document.getElementById('gemini-key').value.trim();
     const systemText =
@@ -486,6 +404,7 @@
     return answer;
   }
 
+  // ── Chat ──────────────────────────────────────────────────────────────────
   function handleKey(e) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   }
