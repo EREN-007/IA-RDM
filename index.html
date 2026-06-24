@@ -137,7 +137,6 @@
     .user  .bubble { background: #5c6bc0; border-bottom-right-radius: 3px; }
     .model .bubble { background: #1a1d27; border: 1px solid #2a2d3e; border-bottom-left-radius: 3px; white-space: pre-wrap; }
 
-    /* Typing indicator */
     .typing .bubble { display: flex; gap: 6px; align-items: center; padding: 14px 18px; }
     .dot { width: 8px; height: 8px; border-radius: 50%; background: #5c6bc0; animation: bounce .9s infinite; }
     .dot:nth-child(2) { animation-delay: .15s; }
@@ -178,7 +177,6 @@
     #send-btn:hover { opacity: .85; }
     #send-btn:disabled { opacity: .4; cursor: not-allowed; }
 
-    /* Markdown-like formatting in model bubbles */
     .model .bubble strong { color: #a0c4ff; }
     .model .bubble code {
       background: #0f1117; padding: 2px 5px;
@@ -188,7 +186,6 @@
 </head>
 <body>
 
-<!-- ── Sidebar ── -->
 <aside id="sidebar">
   <h2>⚙️ Configuration</h2>
 
@@ -198,8 +195,8 @@
   </div>
 
   <div>
-    <label for="folder-id">ID du dossier Google Drive</label>
-    <input id="folder-id" type="text" placeholder="1AbCdEfGhIjKl…" />
+    <label for="folder-id">ID ou URL du dossier Google Drive</label>
+    <input id="folder-id" type="text" placeholder="1AbCdEfGhIjKl… ou URL complète" />
   </div>
 
   <div>
@@ -234,13 +231,12 @@
       <li>Créez un projet → activez l'<strong>API Google Drive</strong></li>
       <li>Identifiants → Créer → <strong>ID client OAuth</strong></li>
       <li>Type : <strong>Application Web</strong></li>
-      <li>Origines autorisées : <code>http://localhost</code> et <code>null</code></li>
+      <li>Origines JS autorisées : <code>https://eren-007.github.io</code></li>
       <li>Copiez le <strong>Client ID</strong> ici</li>
     </ol>
   </details>
 </aside>
 
-<!-- ── Main ── -->
 <main id="main">
   <div id="chat-header">
     <span>📐</span>
@@ -262,21 +258,18 @@
   </div>
 </main>
 
-<!-- Google API (chargé dynamiquement) -->
 <script>
-  // ── État global ────────────────────────────────────────────────────────────
-  let driveContext = "";   // Texte extrait de tous les documents
-  let chatHistory = [];    // [{role, parts:[{text}]}]
+  let driveContext = "";
+  let chatHistory = [];
   let synced = false;
 
-  // ── Persistance locale ────────────────────────────────────────────────────
   window.addEventListener('load', () => {
     const saved = localStorage.getItem('rdm_config');
     if (saved) {
       const cfg = JSON.parse(saved);
       if (cfg.geminiKey) document.getElementById('gemini-key').value = cfg.geminiKey;
-      if (cfg.folderId) document.getElementById('folder-id').value = cfg.folderId;
-      if (cfg.clientId) document.getElementById('client-id').value = cfg.clientId;
+      if (cfg.folderId)  document.getElementById('folder-id').value  = cfg.folderId;
+      if (cfg.clientId)  document.getElementById('client-id').value  = cfg.clientId;
     }
   });
 
@@ -288,7 +281,11 @@
     }));
   }
 
-  // ── UI helpers ────────────────────────────────────────────────────────────
+  function parseFolderId(input) {
+    const m = input.match(/folders\/([a-zA-Z0-9_-]+)/);
+    return m ? m[1] : input.trim();
+  }
+
   function showStatus(msg, type) {
     const el = document.getElementById('status-msg');
     el.textContent = msg;
@@ -309,19 +306,14 @@
   function appendMessage(role, text, typing = false) {
     const empty = document.getElementById('empty-state');
     if (empty) empty.remove();
-
     const wrap = document.getElementById('messages');
     const div = document.createElement('div');
     div.className = 'msg ' + role + (typing ? ' typing' : '');
     if (typing) {
       div.id = 'typing-indicator';
-      div.innerHTML = `
-        <div class="avatar">${role === 'user' ? '🎓' : '🤖'}</div>
-        <div class="bubble"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
+      div.innerHTML = `<div class="avatar">${role === 'user' ? '🎓' : '🤖'}</div><div class="bubble"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
     } else {
-      div.innerHTML = `
-        <div class="avatar">${role === 'user' ? '🎓' : '🤖'}</div>
-        <div class="bubble">${escapeHtml(text)}</div>`;
+      div.innerHTML = `<div class="avatar">${role === 'user' ? '🎓' : '🤖'}</div><div class="bubble">${escapeHtml(text)}</div>`;
     }
     wrap.appendChild(div);
     wrap.scrollTop = wrap.scrollHeight;
@@ -341,23 +333,8 @@
 
   function clearChat() {
     chatHistory = [];
-    const wrap = document.getElementById('messages');
-    wrap.innerHTML = `<div id="empty-state">
-      <div class="icon">📚</div>
-      <h2>Conversation effacée</h2>
-      <p>Posez une nouvelle question sur vos cours de RDM.</p>
-    </div>`;
-  }
-
-  // ── Google Drive OAuth + lecture ──────────────────────────────────────────
-  async function loadGapiScript() {
-    return new Promise(resolve => {
-      if (window.gapi) return resolve();
-      const s = document.createElement('script');
-      s.src = 'https://apis.google.com/js/api.js';
-      s.onload = resolve;
-      document.head.appendChild(s);
-    });
+    document.getElementById('messages').innerHTML =
+      '<div id="empty-state"><div class="icon">📚</div><h2>Conversation effacée</h2><p>Posez une nouvelle question.</p></div>';
   }
 
   async function loadGisScript() {
@@ -383,50 +360,22 @@
   }
 
   async function listFilesInFolder(token, folderId) {
-    const mimes = [
-      'application/pdf',
-      'text/plain',
-      'application/vnd.google-apps.document',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    ].map(m => `mimeType='${m}'`).join(' or ');
-
-    let files = [];
-    let pageToken = '';
+    const mimes = ['application/pdf','text/plain','application/vnd.google-apps.document',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
+      .map(m => `mimeType='${m}'`).join(' or ');
+    let files = [], pageToken = '';
     do {
       const q = encodeURIComponent(`'${folderId}' in parents and trashed=false and (${mimes})`);
-      const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=nextPageToken,files(id,name,mimeType)&pageSize=100${pageToken ? '&pageToken=' + pageToken : ''}`;
+      const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=nextPageToken,files(id,name,mimeType)&pageSize=100${pageToken ? '&pageToken='+pageToken : ''}`;
       const r = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
       const data = await r.json();
       if (data.error) throw new Error(data.error.message);
       files = files.concat(data.files || []);
       pageToken = data.nextPageToken || '';
     } while (pageToken);
-
     return files;
   }
 
-  async function downloadFileText(token, file) {
-    let url;
-    if (file.mimeType === 'application/vnd.google-apps.document') {
-      url = `https://www.googleapis.com/drive/v3/files/${file.id}/export?mimeType=text%2Fplain`;
-    } else if (file.mimeType === 'application/pdf') {
-      // Pour les PDF, on télécharge et on extrait avec PDF.js
-      url = `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`;
-    } else {
-      url = `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`;
-    }
-
-    const r = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
-    if (!r.ok) return `[Erreur téléchargement: ${file.name}]`;
-
-    if (file.mimeType === 'application/pdf') {
-      const buffer = await r.arrayBuffer();
-      return await extractPdfText(buffer, file.name);
-    }
-    return `=== ${file.name} ===\n` + await r.text();
-  }
-
-  // Extraction PDF avec PDF.js (CDN)
   async function loadPdfJs() {
     if (window.pdfjsLib) return;
     return new Promise(resolve => {
@@ -457,139 +406,104 @@
     }
   }
 
-  // ── Synchronisation principale ────────────────────────────────────────────
+  async function downloadFileText(token, file) {
+    let url;
+    if (file.mimeType === 'application/vnd.google-apps.document') {
+      url = `https://www.googleapis.com/drive/v3/files/${file.id}/export?mimeType=text%2Fplain`;
+    } else {
+      url = `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`;
+    }
+    const r = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
+    if (!r.ok) return `[Erreur téléchargement: ${file.name}]`;
+    if (file.mimeType === 'application/pdf') {
+      return await extractPdfText(await r.arrayBuffer(), file.name);
+    }
+    return `=== ${file.name} ===\n` + await r.text();
+  }
+
   async function startSync() {
     const geminiKey = document.getElementById('gemini-key').value.trim();
-    const folderId  = document.getElementById('folder-id').value.trim();
+    const folderId  = parseFolderId(document.getElementById('folder-id').value);
     const clientId  = document.getElementById('client-id').value.trim();
-
     if (!geminiKey || !folderId || !clientId) {
-      showStatus('Veuillez remplir les trois champs de configuration.', 'err');
-      return;
+      showStatus('Veuillez remplir les trois champs.', 'err'); return;
     }
-
     saveConfig();
     document.getElementById('sync-btn').disabled = true;
     document.getElementById('status-msg').style.display = 'none';
     setProgress(5, 'Connexion à Google Drive…');
-
     try {
       const token = await getAccessToken(clientId);
-      setProgress(15, 'Récupération de la liste des fichiers…');
-
+      setProgress(15, 'Récupération des fichiers…');
       const files = await listFilesInFolder(token, folderId);
-      if (files.length === 0) {
-        showStatus('Aucun fichier compatible trouvé dans ce dossier.', 'err');
-        hideProgress();
-        document.getElementById('sync-btn').disabled = false;
-        return;
+      if (!files.length) {
+        showStatus('Aucun fichier compatible trouvé.', 'err');
+        hideProgress(); document.getElementById('sync-btn').disabled = false; return;
       }
-
-      let allText = '';
-      const names = [];
-
+      let allText = ''; const names = [];
       for (let i = 0; i < files.length; i++) {
-        const pct = 15 + Math.round(((i + 1) / files.length) * 80);
-        setProgress(pct, `📄 ${files[i].name} (${i+1}/${files.length})`);
-        const text = await downloadFileText(token, files[i]);
-        allText += text + '\n\n';
+        setProgress(15 + Math.round(((i+1)/files.length)*80), `📄 ${files[i].name} (${i+1}/${files.length})`);
+        allText += await downloadFileText(token, files[i]) + '\n\n';
         names.push(files[i].name);
       }
-
-      // Tronquer à 900 000 caractères (limite sûre pour Gemini 1.5 Pro)
       driveContext = allText.slice(0, 900_000);
-      chatHistory  = [];
-      synced = true;
-
-      // Afficher les fichiers dans la sidebar
-      const ul = document.getElementById('files-ul');
-      ul.innerHTML = names.map(n => `<li title="${n}">${n}</li>`).join('');
+      chatHistory = []; synced = true;
+      document.getElementById('files-ul').innerHTML = names.map(n => `<li title="${n}">${n}</li>`).join('');
       document.getElementById('file-list').style.display = 'block';
-
       setProgress(100, 'Terminé !');
       setTimeout(hideProgress, 1500);
       showStatus(`✅ ${names.length} fichier(s) chargé(s) !`, 'ok');
-      enableChat();
-      clearChat();
-
-    } catch (e) {
-      showStatus('Erreur : ' + e, 'err');
-      hideProgress();
+      enableChat(); clearChat();
+    } catch(e) {
+      showStatus('Erreur : ' + e, 'err'); hideProgress();
     } finally {
       document.getElementById('sync-btn').disabled = false;
     }
   }
 
-  // ── Gemini API ────────────────────────────────────────────────────────────
   async function callGemini(question) {
     const key = document.getElementById('gemini-key').value.trim();
-
     const systemText =
       `Tu es un tuteur expert en Résistance des Matériaux (RDM).\n` +
       `Réponds toujours en français, de manière pédagogique et structurée.\n` +
       `Pour les calculs, détaille chaque étape avec les formules utilisées.\n` +
-      `Si la question dépasse le contenu des documents, dis-le clairement.\n\n` +
       (driveContext ? `--- DOCUMENTS DE COURS ---\n${driveContext}\n--- FIN ---\n` : '');
-
-    // Ajouter la nouvelle question à l'historique
     chatHistory.push({ role: 'user', parts: [{ text: question }] });
-
-    // Construire le tableau contents avec le système en premier message
     const contents = [
-      { role: 'user',  parts: [{ text: systemText + '\n\n(Réponds "Compris, je suis prêt à répondre à tes questions sur le cours de RDM." si tu as bien reçu le contexte.)' }] },
-      { role: 'model', parts: [{ text: 'Compris, je suis prêt à répondre à tes questions sur le cours de RDM.' }] },
+      { role: 'user',  parts: [{ text: systemText + '\n\nRéponds "Compris." si tu as bien reçu le contexte.' }] },
+      { role: 'model', parts: [{ text: 'Compris.' }] },
       ...chatHistory,
     ];
-
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${key}`;
-    const body = {
-      contents,
-      generationConfig: { temperature: 0.2, maxOutputTokens: 4096 },
-    };
-
-    const r = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-
+    const r = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${key}`,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents, generationConfig: { temperature: 0.2, maxOutputTokens: 4096 } }) }
+    );
     const data = await r.json();
     if (data.error) throw new Error(data.error.message);
-
     const answer = data.candidates?.[0]?.content?.parts?.[0]?.text || '(Pas de réponse)';
     chatHistory.push({ role: 'model', parts: [{ text: answer }] });
     return answer;
   }
 
-  // ── Chat ──────────────────────────────────────────────────────────────────
   function handleKey(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   }
 
   async function sendMessage() {
     const input = document.getElementById('user-input');
     const question = input.value.trim();
     if (!question) return;
-
-    input.value = '';
-    input.disabled = true;
+    input.value = ''; input.disabled = true;
     document.getElementById('send-btn').disabled = true;
-
     appendMessage('user', question);
     const typingEl = appendMessage('model', '', true);
-
     try {
       const answer = await callGemini(question);
-      typingEl.remove();
-      appendMessage('model', answer);
+      typingEl.remove(); appendMessage('model', answer);
     } catch(e) {
-      typingEl.remove();
-      appendMessage('model', '❌ Erreur : ' + e.message);
+      typingEl.remove(); appendMessage('model', '❌ Erreur : ' + e.message);
     } finally {
-      input.disabled = false;
       input.disabled = !synced;
       document.getElementById('send-btn').disabled = !synced;
       input.focus();
