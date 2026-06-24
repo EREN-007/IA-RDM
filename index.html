@@ -288,6 +288,12 @@
     }));
   }
 
+  // Accepte l'URL complète Drive ou juste l'ID
+  function parseFolderId(input) {
+    const m = input.match(/folders\/([a-zA-Z0-9_-]+)/);
+    return m ? m[1] : input.trim();
+  }
+
   // ── UI helpers ────────────────────────────────────────────────────────────
   function showStatus(msg, type) {
     const el = document.getElementById('status-msg');
@@ -460,7 +466,7 @@
   // ── Synchronisation principale ────────────────────────────────────────────
   async function startSync() {
     const geminiKey = document.getElementById('gemini-key').value.trim();
-    const folderId  = document.getElementById('folder-id').value.trim();
+    const folderId  = parseFolderId(document.getElementById('folder-id').value);
     const clientId  = document.getElementById('client-id').value.trim();
 
     if (!geminiKey || !folderId || !clientId) {
