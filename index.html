@@ -64,7 +64,11 @@
 
 <aside id="sidebar">
   <h2>⚙️ Configuration</h2>
-  <div><label for="gemini-key">Clé API Gemini</label><input id="gemini-key" type="password" placeholder="AIzaSy…" /></div>
+  <div>
+    <label for="grok-key">Clé API Grok (xAI)</label>
+    <input id="grok-key" type="password" placeholder="xai-…" />
+    <div style="font-size:.75rem;color:#6a7090;margin-top:4px">Clé gratuite sur <strong>console.x.ai</strong></div>
+  </div>
   <div><label for="folder-id">ID ou URL du dossier Google Drive</label><input id="folder-id" type="text" placeholder="1AbCdEfGhIjKl… ou URL complète" /></div>
   <div><label for="client-id">Client ID OAuth Google</label><input id="client-id" type="text" placeholder="xxx.apps.googleusercontent.com" /></div>
   <button class="btn btn-primary" id="sync-btn" onclick="startSync()">🔄 Synchroniser le Drive</button>
@@ -90,7 +94,7 @@
     <div id="empty-state">
       <div class="icon">📚</div>
       <h2>Synchronisez vos cours pour commencer</h2>
-      <p>Entrez votre clé Gemini, votre Client ID Google et l'ID de votre dossier Drive, puis cliquez sur <strong>Synchroniser</strong>.<br><br>Formats acceptés : PDF, PowerPoint, Word, texte, Google Docs, Google Slides.</p>
+      <p>Entrez votre clé Grok (xAI), votre Client ID Google et l'ID de votre dossier Drive, puis cliquez sur <strong>Synchroniser</strong>.<br><br>Formats acceptés : PDF, PowerPoint, Word, texte, Google Docs, Google Slides.</p>
     </div>
   </div>
   <div id="input-area">
@@ -117,7 +121,7 @@
     const saved = localStorage.getItem('rdm_config');
     if (saved) {
       const cfg = JSON.parse(saved);
-      if (cfg.geminiKey) document.getElementById('gemini-key').value = cfg.geminiKey;
+      if (cfg.grokKey)   document.getElementById('grok-key').value   = cfg.grokKey;
       if (cfg.folderId)  document.getElementById('folder-id').value  = cfg.folderId;
       if (cfg.clientId)  document.getElementById('client-id').value  = cfg.clientId;
     }
@@ -125,9 +129,9 @@
 
   function saveConfig() {
     localStorage.setItem('rdm_config', JSON.stringify({
-      geminiKey: document.getElementById('gemini-key').value,
-      folderId:  document.getElementById('folder-id').value,
-      clientId:  document.getElementById('client-id').value,
+      grokKey:  document.getElementById('grok-key').value,
+      folderId: document.getElementById('folder-id').value,
+      clientId: document.getElementById('client-id').value,
     }));
   }
 
@@ -185,6 +189,7 @@
       '<div id="empty-state"><div class="icon">📚</div><h2>Conversation effacée</h2><p>Posez une nouvelle question.</p></div>';
   }
 
+  // ── Google OAuth ──────────────────────────────────────────────────
   async function loadGisScript() {
     return new Promise(resolve => {
       if (window.google && window.google.accounts) return resolve();
@@ -207,6 +212,7 @@
     });
   }
 
+  // ── Google Drive ───────────────────────────────────────────────────
   async function listFilesInFolder(token, folderId) {
     const mimeFilter = SUPPORTED_MIMES.map(m => `mimeType='${m}'`).join(' or ');
     let files = [], pageToken = '';
@@ -227,11 +233,7 @@
     return new Promise(resolve => {
       const s = document.createElement('script');
       s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-      s.onload = () => {
-        pdfjsLib.GlobalWorkerOptions.workerSrc =
-          'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-        resolve();
-      };
+      s.onload = () => { pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; resolve(); };
       document.head.appendChild(s);
     });
   }
@@ -247,9 +249,7 @@
         text += content.items.map(s => s.str).join(' ') + '\n';
       }
       return text;
-    } catch(e) {
-      return `[Erreur extraction PDF ${name}: ${e.message}]`;
-    }
+    } catch(e) { return `[Erreur PDF ${name}: ${e.message}]`; }
   }
 
   async function loadJsZip() {
@@ -278,43 +278,31 @@
         if (slideText) text += `[Diapo ${slideNum}] ${slideText}\n`;
       }
       return text;
-    } catch(e) {
-      return `[Erreur extraction PPTX ${name}: ${e.message}]`;
-    }
+    } catch(e) { return `[Erreur PPTX ${name}: ${e.message}]`; }
   }
 
   async function downloadFileText(token, file) {
     const { id, name, mimeType } = file;
     try {
-      if (mimeType === 'application/vnd.google-apps.document' ||
-          mimeType === 'application/vnd.google-apps.presentation') {
-        const r = await fetch(
-          `https://www.googleapis.com/drive/v3/files/${id}/export?mimeType=text%2Fplain`,
-          { headers: { Authorization: 'Bearer ' + token } }
-        );
-        if (!r.ok) return `[Erreur export Google ${name}]`;
+      if (mimeType === 'application/vnd.google-apps.document' || mimeType === 'application/vnd.google-apps.presentation') {
+        const r = await fetch(`https://www.googleapis.com/drive/v3/files/${id}/export?mimeType=text%2Fplain`, { headers: { Authorization: 'Bearer ' + token } });
+        if (!r.ok) return `[Erreur export ${name}]`;
         return `=== ${name} ===\n` + await r.text();
       }
-      const r = await fetch(
-        `https://www.googleapis.com/drive/v3/files/${id}?alt=media`,
-        { headers: { Authorization: 'Bearer ' + token } }
-      );
+      const r = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media`, { headers: { Authorization: 'Bearer ' + token } });
       if (!r.ok) return `[Erreur téléchargement ${name}]`;
       const buffer = await r.arrayBuffer();
       if (mimeType === 'application/pdf') return await extractPdfText(buffer, name);
-      if (mimeType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation')
-        return await extractPptxText(buffer, name);
+      if (mimeType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation') return await extractPptxText(buffer, name);
       return `=== ${name} ===\n` + new TextDecoder('utf-8').decode(buffer);
-    } catch(e) {
-      return `[Erreur ${name}: ${e.message}]`;
-    }
+    } catch(e) { return `[Erreur ${name}: ${e.message}]`; }
   }
 
   async function startSync() {
-    const geminiKey = document.getElementById('gemini-key').value.trim();
-    const folderId  = parseFolderId(document.getElementById('folder-id').value);
-    const clientId  = document.getElementById('client-id').value.trim();
-    if (!geminiKey || !folderId || !clientId) { showStatus('Veuillez remplir les trois champs.', 'err'); return; }
+    const grokKey  = document.getElementById('grok-key').value.trim();
+    const folderId = parseFolderId(document.getElementById('folder-id').value);
+    const clientId = document.getElementById('client-id').value.trim();
+    if (!grokKey || !folderId || !clientId) { showStatus('Veuillez remplir les trois champs.', 'err'); return; }
     saveConfig();
     document.getElementById('sync-btn').disabled = true;
     document.getElementById('status-msg').style.display = 'none';
@@ -331,42 +319,50 @@
         allText += await downloadFileText(token, files[i]) + '\n\n';
         names.push(files[i].name);
       }
-      driveContext = allText.slice(0, 900_000);
+      driveContext = allText.slice(0, 120_000);
       chatHistory = []; synced = true;
       document.getElementById('files-ul').innerHTML = names.map(n=>`<li title="${n}">${n}</li>`).join('');
       document.getElementById('file-list').style.display = 'block';
       setProgress(100, 'Terminé !'); setTimeout(hideProgress, 1500);
       showStatus(`✅ ${names.length} fichier(s) chargé(s) !`, 'ok');
       enableChat(); clearChat();
-    } catch(e) {
-      showStatus('Erreur : ' + e, 'err'); hideProgress();
-    } finally {
-      document.getElementById('sync-btn').disabled = false;
-    }
+    } catch(e) { showStatus('Erreur : ' + e, 'err'); hideProgress(); }
+    finally { document.getElementById('sync-btn').disabled = false; }
   }
 
-  async function callGemini(question) {
-    const key = document.getElementById('gemini-key').value.trim();
-    const systemText =
-      `Tu es un tuteur expert en Résistance des Matériaux (RDM).\n` +
-      `Réponds toujours en français, de manière pédagogique et structurée.\n` +
-      `Pour les calculs, détaille chaque étape avec les formules utilisées.\n` +
-      (driveContext ? `--- DOCUMENTS DE COURS ---\n${driveContext}\n--- FIN ---\n` : '');
-    chatHistory.push({ role: 'user', parts: [{ text: question }] });
-    const contents = [
-      { role: 'user',  parts: [{ text: systemText + '\n\nRéponds "Compris." si tu as bien reçu le contexte.' }] },
-      { role: 'model', parts: [{ text: 'Compris.' }] },
-      ...chatHistory,
+  // ── Grok API (compatible OpenAI) ────────────────────────────────────────
+  async function callGrok(question) {
+    const key = document.getElementById('grok-key').value.trim();
+    const systemMsg = {
+      role: 'system',
+      content:
+        'Tu es un tuteur expert en Résistance des Matériaux (RDM).\n' +
+        'Réponds toujours en français, de manière pédagogique et structurée.\n' +
+        'Pour les calculs, détaille chaque étape avec les formules utilisées.\n' +
+        (driveContext ? '--- DOCUMENTS DE COURS ---\n' + driveContext + '\n--- FIN ---' : '')
+    };
+
+    const messages = [
+      systemMsg,
+      ...chatHistory.map(m => ({ role: m.role, content: m.content })),
+      { role: 'user', content: question }
     ];
-    const r = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
-      { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents, generationConfig: { temperature: 0.2, maxOutputTokens: 4096 } }) }
-    );
+
+    const r = await fetch('https://api.x.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+      body: JSON.stringify({
+        model: 'grok-3-mini',
+        messages,
+        temperature: 0.2,
+        max_tokens: 4096,
+      })
+    });
     const data = await r.json();
-    if (data.error) throw new Error(data.error.message);
-    const answer = data.candidates?.[0]?.content?.parts?.[0]?.text || '(Pas de réponse)';
-    chatHistory.push({ role: 'model', parts: [{ text: answer }] });
+    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+    const answer = data.choices?.[0]?.message?.content || '(Pas de réponse)';
+    chatHistory.push({ role: 'user', content: question });
+    chatHistory.push({ role: 'assistant', content: answer });
     return answer;
   }
 
@@ -383,7 +379,7 @@
     appendMessage('user', question);
     const typingEl = appendMessage('model', '', true);
     try {
-      const answer = await callGemini(question);
+      const answer = await callGrok(question);
       typingEl.remove(); appendMessage('model', answer);
     } catch(e) {
       typingEl.remove(); appendMessage('model', '❌ Erreur : ' + e.message);
